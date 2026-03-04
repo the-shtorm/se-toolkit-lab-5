@@ -14,6 +14,9 @@
 - [Copy the request information](#copy-the-request-information)
   - [Copy the request as `fetch` code](#copy-the-request-as-fetch-code)
   - [Copy the response](#copy-the-response)
+- [The local storage](#the-local-storage)
+  - [Open the local storage tab](#open-the-local-storage-tab)
+  - [See local storage for the URL](#see-local-storage-for-the-url)
 
 ## What are browser developer tools
 
@@ -180,3 +183,50 @@ You can:
 
       1. Click `Copy`.
       2. Click `Copy Response`.
+
+## The local storage
+
+Docs:
+
+- [`Chrome` - Local Storage](https://developer.chrome.com/docs/devtools/storage/localstorage)
+- [`Firefox` - Local Storage](https://firefox-source-docs.mozilla.org/devtools-user/storage_inspector/local_storage_session_storage/)
+- [`Safari` - Storage Tab](https://webkit.org/web-inspector/storage-tab/)
+
+### Open the local storage tab
+
+1. [Open the developer tools](#open-the-developer-tools).
+
+2. Go to the local storage panel for the dev server:
+
+    - `Chrome`:
+      1. Click `More tabs`.
+
+         <img alt="Chrome - more tabs" src="./images/browser-developer-tools/chrome/more-tabs.png" style="width:200px"></img>
+
+      2. Click `Application`.
+
+      3. Click `Local storage`.
+
+    - `Firefox`:
+
+      1. Click the icon with more tabs.
+
+         <img alt="Chrome - more tabs" src="./images/browser-developer-tools/firefox/more-tabs.png" style="width:200px"></img>
+
+      2. Click `Storage`.
+
+      3. Click `Local Storage`.
+
+    - `Safari`:
+
+      <!-- TODO safari -->
+
+  You should see URLs.
+
+### See local storage for the URL
+
+1. [Open the local storage tab](#open-the-local-storage-tab).
+2. Click the [URL](./computer-networks.md#url).
+3. You should see:
+   - `Key`: a name
+   - `Value`: the value
