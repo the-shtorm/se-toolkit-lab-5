@@ -63,7 +63,7 @@ Create a `Lab Task` issue titled: `[Task] Build the Data Pipeline`
    curl -u <your-email>@innopolis.university:<your-github-username><your-telegram-alias> https://auche.namaz.live/api/items
    ```
 
-   Replace `<your-email>` and `<your-github-username><your-telegram-alias>` with the credentials you mentioned in autochecker (same as in [setup step 1.4.3](../setup.md#143-configure-the-autochecker-api-credentials)).
+   Replace `<your-email>` and `<your-github-username><your-telegram-alias>` (must be same as you entered in autochecker bot).
 
    You should see a JSON array of lab and task objects:
 
