@@ -1,4 +1,5 @@
 import { useState, useEffect, useReducer, FormEvent } from 'react'
+import Dashboard from './Dashboard'
 import './App.css'
 
 const STORAGE_KEY = 'api_key'
@@ -121,6 +122,9 @@ function App() {
           </tbody>
         </table>
       )}
+
+      {/** Dashboard shows analytics for connected users */}
+      <Dashboard />
     </div>
   )
 }
