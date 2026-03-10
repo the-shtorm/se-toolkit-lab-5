@@ -1,5 +1,6 @@
 import { useState, useEffect, useReducer, FormEvent } from 'react'
 import './App.css'
+import { Dashboard } from './Dashboard'
 
 const STORAGE_KEY = 'api_key'
 
@@ -8,6 +9,11 @@ interface Item {
   type: string
   title: string
   created_at: string
+}
+
+interface Lab {
+  id: number
+  title: string
 }
 
 type FetchState =
@@ -32,29 +38,45 @@ function fetchReducer(_state: FetchState, action: FetchAction): FetchState {
   }
 }
 
+type Page = 'items' | 'dashboard'
+
 function App() {
   const [token, setToken] = useState(
     () => localStorage.getItem(STORAGE_KEY) ?? '',
   )
   const [draft, setDraft] = useState('')
+  const [currentPage, setCurrentPage] = useState<Page>('items')
   const [fetchState, dispatch] = useReducer(fetchReducer, { status: 'idle' })
+  const [labs, setLabs] = useState<Lab[]>([])
+  const [labsLoading, setLabsLoading] = useState(false)
+  const [labsError, setLabsError] = useState<string | null>(null)
 
   useEffect(() => {
     if (!token) return
 
     dispatch({ type: 'fetch_start' })
+    setLabsLoading(true)
 
-    fetch('/items/', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`)
-        return res.json()
+    Promise.all([
+      fetch('/items/', { headers: { Authorization: `Bearer ${token}` } })
+        .then((res) => {
+          if (!res.ok) throw new Error(`HTTP ${res.status}`)
+          return res.json()
+        }),
+    ])
+      .then(([itemsData]) => {
+        console.log('All items:', itemsData)
+        dispatch({ type: 'fetch_success', data: itemsData })
+        const labsData = itemsData.filter((item: Item) => item.type === 'lab')
+        console.log('Filtered labs:', labsData)
+        setLabs(labsData)
+        setLabsLoading(false)
       })
-      .then((data: Item[]) => dispatch({ type: 'fetch_success', data }))
-      .catch((err: Error) =>
-        dispatch({ type: 'fetch_error', message: err.message }),
-      )
+      .catch((err: Error) => {
+        dispatch({ type: 'fetch_error', message: err.message })
+        setLabsError(err.message)
+        setLabsLoading(false)
+      })
   }, [token])
 
   function handleConnect(e: FormEvent) {
@@ -90,36 +112,65 @@ function App() {
   return (
     <div>
       <header className="app-header">
-        <h1>Items</h1>
+        <nav className="nav-links">
+          <button
+            className={`nav-btn ${currentPage === 'items' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('items')}
+          >
+            Items
+          </button>
+          <button
+            className={`nav-btn ${currentPage === 'dashboard' ? 'active' : ''}`}
+            onClick={() => setCurrentPage('dashboard')}
+          >
+            Dashboard
+          </button>
+        </nav>
         <button className="btn-disconnect" onClick={handleDisconnect}>
           Disconnect
         </button>
       </header>
 
-      {fetchState.status === 'loading' && <p>Loading...</p>}
-      {fetchState.status === 'error' && <p>Error: {fetchState.message}</p>}
+      {currentPage === 'dashboard' ? (
+        labsError ? (
+          <div>
+            <p>Error loading labs: {labsError}</p>
+          </div>
+        ) : labsLoading ? (
+          <p>Loading labs...</p>
+        ) : labs.length === 0 ? (
+          <p>No labs available.</p>
+        ) : (
+          <Dashboard labs={labs} token={token} onDisconnect={handleDisconnect} />
+        )
+      ) : (
+        <>
+          {fetchState.status === 'loading' && <p>Loading...</p>}
+          {fetchState.status === 'error' && <p>Error: {fetchState.message}</p>}
 
-      {fetchState.status === 'success' && (
-        <table>
-          <thead>
-            <tr>
-              <th>ID</th>
-              <th>ItemType</th>
-              <th>Title</th>
-              <th>Created at</th>
-            </tr>
-          </thead>
-          <tbody>
-            {fetchState.items.map((item) => (
-              <tr key={item.id}>
-                <td>{item.id}</td>
-                <td>{item.type}</td>
-                <td>{item.title}</td>
-                <td>{item.created_at}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+          {fetchState.status === 'success' && (
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>ItemType</th>
+                  <th>Title</th>
+                  <th>Created at</th>
+                </tr>
+              </thead>
+              <tbody>
+                {fetchState.items.map((item) => (
+                  <tr key={item.id}>
+                    <td>{item.id}</td>
+                    <td>{item.type}</td>
+                    <td>{item.title}</td>
+                    <td>{item.created_at}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </>
       )}
     </div>
   )
