@@ -29,7 +29,7 @@ const STORAGE_KEY = 'api_key'
 
 interface Lab {
   id: number
-  name: string
+  title: string
 }
 
 interface ScoreBucket {
@@ -37,30 +37,15 @@ interface ScoreBucket {
   count: number
 }
 
-interface ScoresResponse {
-  lab_id: number
-  buckets: ScoreBucket[]
-}
-
 interface TimelineEntry {
   date: string
   submissions: number
 }
 
-interface TimelineResponse {
-  lab_id: number
-  timeline: TimelineEntry[]
-}
-
 interface TaskPassRate {
-  task_id: number
-  task_name: string
-  pass_rate: number
-}
-
-interface PassRatesResponse {
-  lab_id: number
-  pass_rates: TaskPassRate[]
+  task: string
+  avg_score: number | null
+  attempts: number
 }
 
 type FetchState<T> =
@@ -99,73 +84,82 @@ function Dashboard({ labs, token, onDisconnect }: DashboardProps) {
     labs.length > 0 ? labs[0].id : 0,
   )
 
+  console.log('Dashboard received labs:', labs)
+
   const [scoresState, scoresDispatch] = useReducer(
-    fetchReducer<ScoresResponse>,
+    fetchReducer<ScoreBucket[]>,
     { status: 'idle' },
   )
   const [timelineState, timelineDispatch] = useReducer(
-    fetchReducer<TimelineResponse>,
+    fetchReducer<TimelineEntry[]>,
     { status: 'idle' },
   )
   const [passRatesState, passRatesDispatch] = useReducer(
-    fetchReducer<PassRatesResponse>,
+    fetchReducer<TaskPassRate[]>,
     { status: 'idle' },
   )
 
   useEffect(() => {
     if (!selectedLabId) return
 
+    const lab = labs.find((l) => l.id === selectedLabId)
+    if (!lab) return
+
     const headers = { Authorization: `Bearer ${token}` }
+    const labParam = lab.title
 
     // Fetch scores
     scoresDispatch({ type: 'fetch_start' })
-    fetch(`/analytics/scores?lab=${selectedLabId}`, { headers })
+    fetch(`/analytics/scores?lab=${encodeURIComponent(labParam)}`, { headers })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
-      .then((data: ScoresResponse) =>
-        scoresDispatch({ type: 'fetch_success', data }),
-      )
+      .then((data: ScoreBucket[]) => {
+        console.log('Scores data:', data)
+        scoresDispatch({ type: 'fetch_success', data })
+      })
       .catch((err: Error) =>
         scoresDispatch({ type: 'fetch_error', message: err.message }),
       )
 
     // Fetch timeline
     timelineDispatch({ type: 'fetch_start' })
-    fetch(`/analytics/timeline?lab=${selectedLabId}`, { headers })
+    fetch(`/analytics/timeline?lab=${encodeURIComponent(labParam)}`, { headers })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
-      .then((data: TimelineResponse) =>
-        timelineDispatch({ type: 'fetch_success', data }),
-      )
+      .then((data: TimelineEntry[]) => {
+        console.log('Timeline data:', data)
+        timelineDispatch({ type: 'fetch_success', data })
+      })
       .catch((err: Error) =>
         timelineDispatch({ type: 'fetch_error', message: err.message }),
       )
 
     // Fetch pass rates
     passRatesDispatch({ type: 'fetch_start' })
-    fetch(`/analytics/pass-rates?lab=${selectedLabId}`, { headers })
+    fetch(`/analytics/pass-rates?lab=${encodeURIComponent(labParam)}`, { headers })
       .then((res) => {
         if (!res.ok) throw new Error(`HTTP ${res.status}`)
         return res.json()
       })
-      .then((data: PassRatesResponse) =>
-        passRatesDispatch({ type: 'fetch_success', data }),
-      )
+      .then((data: TaskPassRate[]) => {
+        console.log('Pass rates data:', data)
+        passRatesDispatch({ type: 'fetch_success', data })
+      })
       .catch((err: Error) =>
         passRatesDispatch({ type: 'fetch_error', message: err.message }),
       )
-  }, [selectedLabId, token])
+  }, [selectedLabId, token, labs])
 
   const scoresChartData: ChartData<'bar'> = {
-    labels: scoresState.status === 'success' ? scoresState.data.buckets.map((b) => b.bucket) : [],
+    labels: scoresState.status === 'success' ? scoresState.data.map((b) => b.bucket) : [],
     datasets: [
       {
         label: 'Submissions',
-        data: scoresState.status === 'success' ? scoresState.data.buckets.map((b) => b.count) : [],
+        data: scoresState.status === 'success' ? scoresState.data.map((b) => b.count) : [],
         backgroundColor: 'rgba(54, 162, 235, 0.6)',
         borderColor: 'rgba(54, 162, 235, 1)',
         borderWidth: 1,
@@ -174,11 +168,11 @@ function Dashboard({ labs, token, onDisconnect }: DashboardProps) {
   }
 
   const timelineChartData: ChartData<'line'> = {
-    labels: timelineState.status === 'success' ? timelineState.data.timeline.map((t) => t.date) : [],
+    labels: timelineState.status === 'success' ? timelineState.data.map((t) => t.date) : [],
     datasets: [
       {
         label: 'Submissions per Day',
-        data: timelineState.status === 'success' ? timelineState.data.timeline.map((t) => t.submissions) : [],
+        data: timelineState.status === 'success' ? timelineState.data.map((t) => t.submissions) : [],
         borderColor: 'rgba(75, 192, 192, 1)',
         backgroundColor: 'rgba(75, 192, 192, 0.2)',
         tension: 0.1,
@@ -186,7 +180,14 @@ function Dashboard({ labs, token, onDisconnect }: DashboardProps) {
     ],
   }
 
-  const chartOptions: ChartOptions<'bar' | 'line'> = { responsive: true }
+  const chartOptions: ChartOptions<'bar' | 'line'> = { 
+    responsive: true,
+    plugins: {
+      legend: {
+        display: true,
+      },
+    },
+  }
 
   return (
     <div>
@@ -206,7 +207,7 @@ function Dashboard({ labs, token, onDisconnect }: DashboardProps) {
         >
           {labs.map((lab) => (
             <option key={lab.id} value={lab.id}>
-              {lab.name}
+              {lab.title}
             </option>
           ))}
         </select>
@@ -218,7 +219,11 @@ function Dashboard({ labs, token, onDisconnect }: DashboardProps) {
           {scoresState.status === 'loading' && <p>Loading...</p>}
           {scoresState.status === 'error' && <p>Error: {scoresState.message}</p>}
           {scoresState.status === 'success' && (
-            <Bar data={scoresChartData} options={chartOptions} />
+            scoresState.data.length === 0 ? (
+              <p>No data available</p>
+            ) : (
+              <Bar data={scoresChartData} options={chartOptions} />
+            )
           )}
         </div>
 
@@ -227,7 +232,11 @@ function Dashboard({ labs, token, onDisconnect }: DashboardProps) {
           {timelineState.status === 'loading' && <p>Loading...</p>}
           {timelineState.status === 'error' && <p>Error: {timelineState.message}</p>}
           {timelineState.status === 'success' && (
-            <Line data={timelineChartData} options={chartOptions} />
+            timelineState.data.length === 0 ? (
+              <p>No data available</p>
+            ) : (
+              <Line data={timelineChartData} options={chartOptions} />
+            )
           )}
         </div>
       </div>
@@ -240,17 +249,17 @@ function Dashboard({ labs, token, onDisconnect }: DashboardProps) {
           <table>
             <thead>
               <tr>
-                <th>Task ID</th>
-                <th>Task Name</th>
-                <th>Pass Rate (%)</th>
+                <th>Task</th>
+                <th>Avg Score</th>
+                <th>Attempts</th>
               </tr>
             </thead>
             <tbody>
-              {passRatesState.data.pass_rates.map((pr) => (
-                <tr key={pr.task_id}>
-                  <td>{pr.task_id}</td>
-                  <td>{pr.task_name}</td>
-                  <td>{pr.pass_rate.toFixed(2)}</td>
+              {passRatesState.data.map((pr, idx) => (
+                <tr key={idx}>
+                  <td>{pr.task}</td>
+                  <td>{pr.avg_score !== null ? pr.avg_score.toFixed(1) : 'N/A'}</td>
+                  <td>{pr.attempts}</td>
                 </tr>
               ))}
             </tbody>

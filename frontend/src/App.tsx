@@ -13,7 +13,7 @@ interface Item {
 
 interface Lab {
   id: number
-  name: string
+  title: string
 }
 
 type FetchState =
@@ -65,8 +65,10 @@ function App() {
         }),
     ])
       .then(([itemsData]) => {
+        console.log('All items:', itemsData)
         dispatch({ type: 'fetch_success', data: itemsData })
         const labsData = itemsData.filter((item: Item) => item.type === 'lab')
+        console.log('Filtered labs:', labsData)
         setLabs(labsData)
         setLabsLoading(false)
       })
